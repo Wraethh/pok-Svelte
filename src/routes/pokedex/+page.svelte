@@ -102,12 +102,13 @@
 		return pokemons.map((pkmn: Pokemon) => ({ id: pkmn.pokedex_id, answer: '', found: false }));
 	};
 	let values = $state(getValues());
+
 	function isItShiny(): boolean {
 		return Math.ceil(Math.random() * 8192) === 1 ? true : false;
 	}
 
-	/* Charge les données depuis le localStorage */
 	function loadItems(): void {
+		// Charge les données depuis le localStorage
 		const localStorageItems = {
 			savedAnswers: localStorage.getItem('pokemonAnswers'),
 			shuffledPokemons: localStorage.getItem('shuffledPokemons'),
@@ -123,6 +124,7 @@
 			pokemons = JSON.parse(localStorageItems.shuffledPokemons);
 		}
 		if (localStorageItems.gameLang) params.lang = localStorageItems.gameLang;
+
 		if (localStorageItems.timer) {
 			timer = JSON.parse(localStorageItems.timer);
 			localStorage.removeItem('timer');
@@ -130,7 +132,7 @@
 	}
 
 	function validateAnswer(value: string, index: number): void {
-		/* S'assure que la valeur ne contient que des characères nécessaires
+		/* S'assure que la valeur ne contient pas de charactères spéciaux
 		Accents et charactères spé. présents dans les noms de pokémons français : âçéÉêèïô-:\s\.♀♂ */
 		const cleanValue = (str: string): string => str.normalize('NFD').replace(/[^a-z\s\.]/gi, '');
 		/* Met une majuscule à tous les mots */
@@ -193,12 +195,15 @@
 			} else return el;
 		});
 		localStorage.setItem('gameLang', params.lang);
+		localStorage.setItem('pokemonAnswers', JSON.stringify(values));
 	}
 
+	function initiateTimer() {
+		timer = { ...timer, isReadyToStart: true, isPaused: false, elapsedTime: timer.previousTime };
+	}
 	function startTimer() {
-		if (!timer.isPaused) timer = { ...timer, isReadyToStart: true, elapsedTime: '00:00' };
-		else {
-			timer = { ...timer, isOperating: true, isPaused: false };
+		if (timer.isReadyToStart) {
+			timer = { ...timer, isReadyToStart: false, isOperating: true };
 			manageTimer();
 		}
 	}
@@ -226,7 +231,7 @@
 		if (timer.isOperating) {
 			const start = Date.now();
 			runTimer = setInterval(() => {
-				const delta = Date.now() - start; // milliseconds elapsed since start
+				const delta = Date.now() - start;
 				const time = new Date(
 					Date.UTC(
 						0,
@@ -277,14 +282,6 @@
 
 	onMount(() => {
 		loadItems(); // Charge les éléments du localStorage au montage du composant
-		values = values.map((el: Value) => {
-			if (el.found) {
-				return {
-					...el,
-					answer: pokemons.find((pkmn: Pokemon) => pkmn.pokedex_id === el.id).name[params.lang]
-				};
-			} else return el;
-		});
 		return () => {
 			if (runTimer) {
 				pauseTimer();
@@ -294,17 +291,33 @@
 	});
 </script>
 
-<h1>Podédex</h1>
+<h1>Pokédex</h1>
 
 <div class="hud" role="button" tabindex={0} onmousedown={(e) => drag(e)}>
-	<p>
-		Score : {values.filter((el: Value) => el.found).length}
-		/
-		{data.pokemons.length}
-	</p>
+	<div class="utils">
+		<p>
+			Score : {values.filter((el: Value) => el.found).length}
+			/
+			{data.pokemons.length}
+		</p>
+
+		<div class="timer">
+			<p class:paused={timer.isPaused}>
+				{timer.elapsedTime !== '' ? timer.elapsedTime : 'Timer'}
+			</p>
+			{#if (!timer.isReadyToStart && !timer.isOperating) || timer.isPaused}
+				<button onclick={() => initiateTimer()}>▶️</button>
+			{:else}
+				<button onclick={() => pauseTimer()} disabled={!timer.isOperating}>⏸️</button>
+			{/if}
+			<button
+				onclick={() => stopTimer()}
+				disabled={!timer.isOperating && !timer.isReadyToStart && !timer.isPaused}>⏹️</button
+			>
+		</div>
+	</div>
 
 	<div class="settings">
-		<button onclick={() => reset()}>Reset</button>
 		<label>
 			Shuffle
 			<input
@@ -330,25 +343,11 @@
 				<p>EN</p>
 			</label>
 		</div>
-	</div>
-
-	<div class="timer">
-		<p class:paused={timer.isPaused}>
-			{timer.elapsedTime !== '' ? timer.elapsedTime : 'Timer'}
-		</p>
-		{#if (!timer.isReadyToStart && !timer.isOperating) || timer.isPaused}
-			<button onclick={() => startTimer()}>⏵</button>
-		{:else}
-			<button onclick={() => pauseTimer()} disabled={!timer.isOperating}>⏸</button>
-		{/if}
-		<button
-			onclick={() => stopTimer()}
-			disabled={!timer.isOperating && !timer.isReadyToStart && !timer.isPaused}>⏹</button
-		>
+		<button onclick={() => reset()}>Reset</button>
 	</div>
 </div>
 
-<ul>
+<ul class="poke-list">
 	{#each pokemons as pokemon}
 		{@const i = pokemon.pokedex_id - 1}
 		<li>
@@ -363,12 +362,7 @@
 				style="color: {values[i].found ? 'green' : 'red'}"
 				bind:value={values[i].answer}
 				oninput={() => validateAnswer(values[i].answer, i)}
-				onkeydown={() => {
-					if (timer.isReadyToStart) {
-						timer = { ...timer, isReadyToStart: false, isOperating: true };
-						manageTimer();
-					}
-				}}
+				onkeydown={() => startTimer()}
 				disabled={values[i].found}
 			/>
 		</li>
@@ -376,38 +370,49 @@
 </ul>
 
 <style>
-	button {
-		cursor: pointer;
-	}
-	button:disabled {
-		cursor: auto;
-	}
 	.hud {
 		cursor: move;
 		position: fixed;
-		bottom: 0;
+		bottom: 10px;
 		left: 50%;
 		transform: translateX(-50%);
-		z-index: 1;
-		min-width: 420px;
-		/* padding-bottom: 0.5rem; */
-		padding-inline: 2rem;
+		z-index: 10;
+		min-width: 460px;
+		padding: 1rem 2rem;
 		display: flex;
-		/* flex-direction: column; */
+		flex-direction: column;
 		justify-content: center;
-		align-items: center;
 		gap: 1rem;
-		background-color: rgba(143, 27, 27, 0.538);
-		backdrop-filter: blur(4px);
-		border-top-left-radius: 20px;
-		border-top-right-radius: 20px;
+		background-color: rgb(255, 255, 255);
+		border-radius: 20px;
+		border: 6px solid var(--secondary-color);
+		box-shadow:
+			0 0 0 2px #4a74a5,
+			0 0 0 1px #4a74a525 inset;
+		font-family: var(--secondary-font);
+		text-shadow: 1px 1px rgba(0, 0, 0, 0.2);
 	}
+	.hud::before,
+	.hud::after {
+		content: '';
+		position: absolute;
+		width: 10px;
+		height: 60%;
+		background-color: #e1f0f8;
+		border-radius: 5px;
+	}
+	.hud::before {
+		left: 6px;
+	}
+	.hud::after {
+		right: 6px;
+	}
+	.utils,
 	.settings {
 		display: flex;
-		justify-content: center;
-		align-items: center;
 		gap: 1rem;
 	}
+
 	.toggle-switch {
 		display: flex;
 		justify-content: space-evenly;
@@ -429,7 +434,7 @@
 		left: 0;
 		width: 20px;
 		height: 20px;
-		background-color: #fff;
+		background-color: #e1f0f8;
 		border-radius: 10px;
 		cursor: pointer;
 		transition: all 0.5s;
@@ -465,7 +470,7 @@
 		}
 	}
 
-	ul {
+	.poke-list {
 		display: flex;
 		justify-content: center;
 		list-style: none;
@@ -473,30 +478,27 @@
 		flex-wrap: wrap;
 	}
 
-	li {
+	.poke-list li {
 		display: flex;
 		flex-direction: column;
 		width: 120px;
 	}
 
-	li img {
+	.poke-list li img {
 		object-fit: cover;
 		filter: brightness(0);
 		transition: 0.4s;
 		-webkit-user-drag: none;
 	}
-	.found {
+	.poke-list .found {
 		filter: brightness(1);
-		animation: reveal 0.7s forwards;
-		transition: 0.4s;
+		animation: reveal 0.7s;
 	}
 	@keyframes reveal {
 		from {
-			filter: brightness(0);
 			transform: scale(1);
 		}
 		70% {
-			filter: brightness(1);
 			transform: scale(1.5);
 		}
 		80% {

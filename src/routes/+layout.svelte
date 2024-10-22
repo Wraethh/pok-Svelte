@@ -25,7 +25,7 @@
 
 <style>
 	.active {
-		color: red;
+		color: var(--main-color);
 	}
 
 	ul {

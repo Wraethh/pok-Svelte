@@ -8,18 +8,18 @@
     --main-font: "Poppins", sans-serif;
     --secondary-font: "PokemonGb", sans-serif;
 
-    --main-color: #A31F27;
-    --main-color--light: #D1655D;
+    --main-color: #D1655D;
     --secondary-color: #97C8DF;
     --light-color: #E8E8F0;
     --dark-color: #0C0C0C;
+    --action-color: #E3090B;
     --font-color: #2F50BD;
 
     box-sizing: border-box;
     padding: 0;
     margin: 0;
     color: var(--font-color);
-    font-family: var(--secondary-font)
+    font-family: var(--main-font)
 }
 
 body {
@@ -35,9 +35,19 @@ ul {
     list-style-type: none;
 }
 
-button {
+button, input[type="button"], .click {
     cursor: pointer;
+    border: none;
+    background: none;
 }
 button:disabled {
     cursor: auto;
+}
+
+h1, h2, h3, h4, h5, h6, button {
+    font-family: var(--secondary-font);
+}
+
+.nodisplay {
+    display: none;
 }

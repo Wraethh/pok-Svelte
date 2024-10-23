@@ -89,12 +89,12 @@
 
 	const { data } = $props<{ data: { pokemons: Pokemon[] } }>();
 	let pokemons = $state(data.pokemons);
-	let params = $state({ shuffleMod: false, lang: 'fr' });
+	let params = $state({ hide: false, shuffleMod: false, lang: 'fr' });
 	let timer = $state({
 		isReadyToStart: false,
 		isOperating: false,
 		isPaused: false,
-		elapsedTime: '',
+		elapsedTime: '00:00',
 		previousTime: '00:00'
 	});
 	/* Initialise un tableau d'objets pour stocker les réponses */
@@ -172,8 +172,9 @@
 		localStorage.setItem('shuffledPokemons', JSON.stringify(pokemons));
 	}
 
-	function changeMod(): void {
-		params.shuffleMod = !params.shuffleMod;
+	function changeMod(e: Event): void {
+		const input = e.target as HTMLInputElement;
+		params.shuffleMod = input.value === 'oui' ? true : false;
 		if (params.shuffleMod) {
 			localStorage.setItem('shuffleGameMod', JSON.stringify(true));
 			shufflePokemons();
@@ -184,8 +185,9 @@
 		}
 	}
 
-	function changeLang() {
-		params.lang = params.lang === 'fr' ? 'en' : 'fr';
+	function changeLang(e: Event) {
+		const input = e.target as HTMLInputElement;
+		params.lang = input.value ?? (params.lang === 'fr' ? 'en' : 'fr');
 		values = values.map((el: Value) => {
 			if (el.found) {
 				return {
@@ -259,26 +261,26 @@
 		localStorage.removeItem('pokemonAnswers');
 	}
 
-	function drag(e: MouseEvent): void {
-		e.preventDefault();
-		const dragBox = e.target as HTMLElement;
+	// function drag(e: MouseEvent): void {
+	// 	e.preventDefault();
+	// 	const dragBox = e.target as HTMLElement;
 
-		document.onmousemove = (e) => {
-			e.preventDefault();
-			const newLeft = dragBox.offsetLeft + e.movementX;
-			const minLeft = dragBox.offsetWidth / 2;
-			const maxLeft = window.innerWidth - dragBox.offsetWidth / 2;
-			// Limite la position à l'intérieur de l'écran
-			if (newLeft >= minLeft && newLeft <= maxLeft) {
-				dragBox.style.left = `${newLeft}px`;
-			}
-		};
+	// 	document.onmousemove = (e) => {
+	// 		e.preventDefault();
+	// 		const newLeft = dragBox.offsetLeft + e.movementX;
+	// 		const minLeft = dragBox.offsetWidth / 2;
+	// 		const maxLeft = window.innerWidth - dragBox.offsetWidth / 2;
+	// 		// Limite la position à l'intérieur de l'écran
+	// 		if (newLeft >= minLeft && newLeft <= maxLeft) {
+	// 			dragBox.style.left = `${newLeft}px`;
+	// 		}
+	// 	};
 
-		document.onmouseup = () => {
-			document.onmouseup = null;
-			document.onmousemove = null;
-		};
-	}
+	// 	document.onmouseup = () => {
+	// 		document.onmouseup = null;
+	// 		document.onmousemove = null;
+	// 	};
+	// }
 
 	onMount(() => {
 		loadItems(); // Charge les éléments du localStorage au montage du composant
@@ -291,20 +293,27 @@
 	});
 </script>
 
-<h1>Pokédex</h1>
+<h1>Challenge</h1>
 
-<div class="hud" role="button" tabindex={0} onmousedown={(e) => drag(e)}>
-	<div class="utils">
-		<p>
-			Score : {values.filter((el: Value) => el.found).length}
-			/
-			{data.pokemons.length}
-		</p>
+<p>
+	Le Professeur Chen a perdu toutes ses données sur les pokémons après que son disque dur ait rendu
+	l'âme. Il n'a pas fait de backup alors il espère que vous pourrez l'aider à reconstituer une
+	partie de ses données grâce à vos connaissances extensives des pokémons ! <br /> Saurez-vous retrouver
+	le nom de tous ces pokémons ?
+</p>
 
-		<div class="timer">
-			<p class:paused={timer.isPaused}>
-				{timer.elapsedTime !== '' ? timer.elapsedTime : 'Timer'}
-			</p>
+<div class="hud" class:concealed-hud={params.hide}>
+	<div class="score">
+		<legend>Score:</legend>
+		<p>{values.filter((el: Value) => el.found).length} / {data.pokemons.length}</p>
+	</div>
+
+	<div class="timer">
+		<legend>Timer:</legend>
+
+		<div>
+			<p class:paused={timer.isPaused}>{timer.elapsedTime}</p>
+
 			{#if (!timer.isReadyToStart && !timer.isOperating) || timer.isPaused}
 				<button onclick={() => initiateTimer()}>▶️</button>
 			{:else}
@@ -317,35 +326,80 @@
 		</div>
 	</div>
 
-	<div class="settings">
-		<label>
-			Shuffle
-			<input
-				type="checkbox"
-				name="shuffle"
-				checked={params.shuffleMod}
-				oninput={() => {
-					changeMod();
-				}}
-			/>
-		</label>
+	<div class="shuffle-param">
+		<legend>Mélanger:</legend>
 		<div>
-			<label for="lang" class="toggle-switch">
-				<p>FR</p>
+			<div>
 				<input
-					type="checkbox"
-					id="lang"
-					class="toggle-input"
-					checked={params.lang === 'en'}
-					oninput={() => changeLang()}
+					type="radio"
+					id="oui"
+					name="yesno"
+					value="oui"
+					checked={params.shuffleMod}
+					oninput={(e) => changeMod(e)}
 				/>
-				<div class="toggle-button">{params.lang}</div>
-				<p>EN</p>
-			</label>
+				<label for="oui" class="click">oui</label>
+			</div>
+			<div>
+				<input
+					type="radio"
+					id="non"
+					name="yesno"
+					value="non"
+					checked={!params.shuffleMod}
+					oninput={(e) => changeMod(e)}
+				/>
+				<label for="non" class="click">non</label>
+			</div>
 		</div>
-		<button onclick={() => reset()}>Reset</button>
 	</div>
+
+	<div class="lang-param">
+		<legend>Langue:</legend>
+		<div>
+			<div>
+				<input
+					type="radio"
+					id="fr"
+					name="lang"
+					value="fr"
+					checked={params.lang === 'fr'}
+					oninput={(e) => changeLang(e)}
+				/>
+				<label for="fr" class="click">fr</label>
+			</div>
+			<div>
+				<input
+					type="radio"
+					id="en"
+					name="lang"
+					value="en"
+					checked={params.lang === 'en'}
+					oninput={(e) => changeLang(e)}
+				/>
+				<label for="en" class="click">en</label>
+			</div>
+		</div>
+	</div>
+
+	<button class="reset" onclick={() => reset()}>Reset</button>
+
+	<label for="hide-hud" class="hide-hud"
+		>CACHER<input
+			type="button"
+			id="hide-hud"
+			aria-label="hide hud"
+			onclick={() => (params.hide = true)}
+		/></label
+	>
 </div>
+<button
+	class="show-hud"
+	class:nodisplay={!params.hide}
+	style={timer.isOperating ? 'padding: 0 1rem;' : 'font-size: 1.5em'}
+	aria-label="show hud"
+	onclick={() => (params.hide = false)}>{timer.isOperating ? timer.elapsedTime : '!'}</button
+>
 
 <ul class="poke-list">
 	{#each pokemons as pokemon}
@@ -371,25 +425,24 @@
 
 <style>
 	.hud {
-		cursor: move;
 		position: fixed;
 		bottom: 10px;
-		left: 50%;
-		transform: translateX(-50%);
+		left: 10px;
 		z-index: 10;
-		min-width: 460px;
+		min-width: 250px;
 		padding: 1rem 2rem;
 		display: flex;
 		flex-direction: column;
 		justify-content: center;
+		align-items: start;
 		gap: 1rem;
 		background-color: rgb(255, 255, 255);
 		border-radius: 20px;
 		border: 6px solid var(--secondary-color);
 		box-shadow:
 			0 0 0 2px #4a74a5,
-			0 0 0 1px #4a74a525 inset;
-		font-family: var(--secondary-font);
+			0 0 0 1px #4a74a525 inset,
+			4px 4px 0 0 rgba(0, 0, 0, 0.4);
 		text-shadow: 1px 1px rgba(0, 0, 0, 0.2);
 	}
 	.hud::before,
@@ -407,54 +460,58 @@
 	.hud::after {
 		right: 6px;
 	}
-	.utils,
-	.settings {
+	.hud * {
+		font-family: var(--secondary-font);
+	}
+	:global(.concealed-hud) {
+		animation: conceal 1.2s forwards;
+	}
+	@keyframes conceal {
+		20% {
+			transform: translateY(-10px);
+		}
+		to {
+			transform: translateY(120%);
+		}
+	}
+
+	.score,
+	.timer,
+	.lang-param,
+	.shuffle-param {
 		display: flex;
 		gap: 1rem;
 	}
+	.lang-param > div,
+	.shuffle-param > div,
+	.timer > div {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+	.lang-param div > div,
+	.shuffle-param div > div {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+	}
+	.shuffle-param input,
+	.lang-param input {
+		appearance: none;
+		-webkit-appearance: none;
+		width: 10px;
+		height: 10px;
+	}
+	.shuffle-param label,
+	.lang-param label {
+		font-variant: small-caps;
+	}
+	.shuffle-param input:checked,
+	.lang-param input:checked {
+		background-color: var(--font-color);
+		clip-path: polygon(0 0, 0% 100%, 100% 50%);
+	}
 
-	.toggle-switch {
-		display: flex;
-		justify-content: space-evenly;
-		align-items: center;
-		position: relative;
-		width: 35px;
-		height: 15px;
-		border-radius: 17.5px;
-		box-shadow:
-			3px 3px 3px rgba(0, 0, 0, 0.252) inset,
-			-1px -1px 1px rgba(255, 255, 255, 0.286) inset;
-		font-size: 0.6em;
-	}
-	.toggle-input {
-		display: none;
-	}
-	.toggle-button {
-		position: absolute;
-		left: 0;
-		width: 20px;
-		height: 20px;
-		background-color: #e1f0f8;
-		border-radius: 10px;
-		cursor: pointer;
-		transition: all 0.5s;
-		display: grid;
-		place-items: center;
-		text-transform: uppercase;
-	}
-	:global(.toggle-input:checked ~ .toggle-button) {
-		left: 100%;
-		transform: translateX(-100%);
-	}
-	.timer {
-		display: flex;
-		align-items: center;
-		gap: 0.2rem;
-	}
-	.timer button {
-		background: none;
-		border: none;
-	}
 	.paused {
 		animation: blink 1.5s infinite;
 	}
@@ -469,13 +526,68 @@
 			opacity: 1;
 		}
 	}
-
+	.reset {
+		padding: 0.3rem 1rem;
+		border-radius: 20px;
+		background-color: var(--font-color);
+		color: var(--light-color);
+	}
+	.hide-hud {
+		position: absolute;
+		bottom: -10px;
+		right: 20px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.1rem;
+		color: var(--action-color);
+		font-size: 0.48em;
+		z-index: 1;
+		filter: drop-shadow(1px 1px rgba(0, 0, 0, 0.3));
+	}
+	.hide-hud input {
+		width: 30px;
+		height: 15px;
+		background-color: var(--action-color);
+		clip-path: polygon(100% 0, 0 0, 50% 100%);
+	}
+	.show-hud {
+		position: fixed;
+		bottom: 10px;
+		left: 10px;
+		z-index: 1;
+		min-width: 45px;
+		height: 50px;
+		background-color: #fff;
+		color: var(--action-color);
+		border: 2px solid var(--dark-color);
+		border-radius: 5px;
+		box-shadow:
+			0 0 0 3px #ffffff,
+			5px 5px 0 0 rgba(0, 0, 0, 0.4);
+		animation: appear 2s;
+	}
+	@keyframes appear {
+		from {
+			transform: translateY(120px);
+		}
+		70% {
+			transform: translateY(120px);
+		}
+		90% {
+			transform: translateY(-10px);
+		}
+		to {
+			transform: translateY(0);
+		}
+	}
 	.poke-list {
 		display: flex;
 		justify-content: center;
 		list-style: none;
 		gap: 2rem 1rem;
 		flex-wrap: wrap;
+		margin-bottom: 8rem;
 	}
 
 	.poke-list li {
@@ -506,6 +618,18 @@
 		}
 		to {
 			transform: scale(1);
+		}
+	}
+
+	@media (width <= 480px) {
+		.hud {
+			gap: 1.5rem;
+		}
+		.score,
+		.timer,
+		.lang-param,
+		.shuffle-param {
+			flex-direction: column;
 		}
 	}
 </style>

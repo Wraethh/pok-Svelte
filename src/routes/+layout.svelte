@@ -26,6 +26,7 @@
 <style>
 	.active {
 		color: var(--main-color);
+		font-family: var(--secondary-font);
 	}
 
 	ul {

@@ -1,85 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-
-	interface Pokemon {
-		pokedex_id: number;
-		generation: number;
-		category: string;
-		name: {
-			fr: string;
-			en: string;
-			jp: string;
-		};
-		sprites: {
-			regular: string;
-			shiny: string;
-			gmax: {
-				regular: string;
-				shiny: string;
-			} | null;
-		};
-		types: {
-			name: string;
-			image: string;
-		}[];
-		talents: {
-			name: string;
-			tc: boolean;
-		}[];
-		stats: {
-			atk: number;
-			def: number;
-			hp: number;
-			spe_atk: number;
-			spe_def: number;
-			vit: number;
-		};
-		resistances: {
-			name: string;
-			multiplier: number;
-		}[];
-		evolution: {
-			pre:
-				| {
-						pokedex_id: number;
-						name: string;
-						condition: string;
-				  }[]
-				| null;
-			next:
-				| {
-						pokedex_id: number;
-						name: string;
-						condition: string;
-				  }[]
-				| null;
-			mega:
-				| {
-						orbe: string;
-						sprites: {
-							regular: string;
-							shiny: string;
-						};
-				  }[]
-				| null;
-		};
-		height: string;
-		weight: string;
-		egg_groups: string[];
-		sexe: { male: number; female: number };
-		catch_rate: number;
-		level_100: number;
-		formes:
-			| {
-					region: string;
-					name: {
-						fr: string;
-						en: string;
-						jp: string;
-					};
-			  }[]
-			| null;
-	}
+	import type { Pokemon } from '$lib/types';
 
 	interface Value {
 		id: number;
@@ -87,9 +8,17 @@
 		found: boolean;
 	}
 
-	const { data } = $props<{ data: { pokemons: Pokemon[] } }>();
-	let pokemons = $state(data.pokemons);
-	let params = $state({ hide: false, shuffleMod: false, lang: 'fr' });
+	type Language = 'fr' | 'en';
+	interface Params {
+		hide: boolean;
+		shuffleMod: boolean;
+		lang: Language;
+	}
+
+	const { data } = $props<{ data: { pokemons: Pokemon[] | [] } }>();
+
+	let pokemons = $state<Pokemon[] | []>(data.pokemons);
+	let params = $state<Params>({ hide: true, shuffleMod: false, lang: 'fr' });
 	let timer = $state({
 		isReadyToStart: false,
 		isOperating: false,
@@ -99,9 +28,9 @@
 	});
 	/* Initialise un tableau d'objets pour stocker les réponses */
 	const getValues = () => {
-		return pokemons.map((pkmn: Pokemon) => ({ id: pkmn.pokedex_id, answer: '', found: false }));
+		return pokemons.map((pkmn: Pokemon) => ({ id: pkmn.id, answer: '', found: false }));
 	};
-	let values = $state(getValues());
+	let values = $state<Value[]>(getValues());
 
 	function isItShiny(): boolean {
 		return Math.ceil(Math.random() * 8192) === 1 ? true : false;
@@ -123,7 +52,7 @@
 		if (localStorageItems.shuffleGameMod && localStorageItems.shuffledPokemons) {
 			pokemons = JSON.parse(localStorageItems.shuffledPokemons);
 		}
-		if (localStorageItems.gameLang) params.lang = localStorageItems.gameLang;
+		if (localStorageItems.gameLang) params.lang = localStorageItems.gameLang as Language;
 
 		if (localStorageItems.timer) {
 			timer = JSON.parse(localStorageItems.timer);
@@ -141,9 +70,13 @@
 			.map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`)
 			.join(' ');
 		/* Détecte si la réponse est juste */
-		const pokemon = pokemons.find((pkmn: Pokemon) => pkmn.pokedex_id === index + 1);
-		if (values[index].answer === cleanValue(pokemon.name[params.lang])) {
-			values[index] = { ...values[index], answer: pokemon.name[params.lang], found: true };
+		const pokemon = pokemons.find((pkmn: Pokemon) => pkmn.id === index + 1);
+		if (values[index].answer === cleanValue(pokemon?.names[params.lang] ?? '')) {
+			values[index] = {
+				...values[index],
+				answer: pokemon?.names[params.lang] || values[index].answer,
+				found: true
+			};
 			localStorage.setItem('pokemonAnswers', JSON.stringify(values));
 		}
 		if (runTimer && values.every((el: Value) => el.found)) {
@@ -158,14 +91,14 @@
 			const getRandomPkmnId = (): number => {
 				// On utilise la récursivité pour trouver un id de pokemon qui ne soit pas déjà présent dans le tableau
 				const randomNum = Math.floor(Math.random() * pokemons.length) + 1;
-				if (result.length !== 0 && result.some((el: Pokemon) => el?.pokedex_id === randomNum)) {
+				if (result.length !== 0 && result.some((el: Pokemon) => el?.id === randomNum)) {
 					return getRandomPkmnId();
 				}
 				return randomNum;
 			};
 			const randomPkmnId = getRandomPkmnId();
-			const randomPokemon = pokemons.find((el: Pokemon) => el.pokedex_id === randomPkmnId);
-			result.push(randomPokemon);
+			const randomPokemon = pokemons.find((el: Pokemon) => el.id === randomPkmnId);
+			if (randomPokemon) result.push(randomPokemon);
 		});
 
 		pokemons = result;
@@ -181,18 +114,18 @@
 		} else {
 			localStorage.removeItem('shuffleGameMod');
 			localStorage.removeItem('shuffledPokemons');
-			pokemons = pokemons.sort((a: Pokemon, b: Pokemon) => a.pokedex_id - b.pokedex_id);
+			pokemons = data.pokemons;
 		}
 	}
 
 	function changeLang(e: Event) {
 		const input = e.target as HTMLInputElement;
-		params.lang = input.value ?? (params.lang === 'fr' ? 'en' : 'fr');
+		params.lang = (input.value as Language) ?? (params.lang === 'fr' ? 'en' : 'fr');
 		values = values.map((el: Value) => {
 			if (el.found) {
 				return {
 					...el,
-					answer: pokemons.find((pkmn: Pokemon) => pkmn.pokedex_id === el.id).name[params.lang]
+					answer: pokemons.find((pkmn: Pokemon) => pkmn.id === el.id)?.names[params.lang] ?? ''
 				};
 			} else return el;
 		});
@@ -223,7 +156,8 @@
 			...timer,
 			isReadyToStart: false,
 			isOperating: false,
-			isPaused: false
+			isPaused: false,
+			previousTime: '00:00'
 		};
 		manageTimer();
 	}
@@ -257,30 +191,9 @@
 
 	/* Réinitialise le jeu */
 	function reset(): void {
-		values = pokemons.map((pkmn: Pokemon) => ({ id: pkmn.pokedex_id, answer: '', found: false }));
+		values = pokemons.map((pkmn: Pokemon) => ({ id: pkmn.id, answer: '', found: false }));
 		localStorage.removeItem('pokemonAnswers');
 	}
-
-	// function drag(e: MouseEvent): void {
-	// 	e.preventDefault();
-	// 	const dragBox = e.target as HTMLElement;
-
-	// 	document.onmousemove = (e) => {
-	// 		e.preventDefault();
-	// 		const newLeft = dragBox.offsetLeft + e.movementX;
-	// 		const minLeft = dragBox.offsetWidth / 2;
-	// 		const maxLeft = window.innerWidth - dragBox.offsetWidth / 2;
-	// 		// Limite la position à l'intérieur de l'écran
-	// 		if (newLeft >= minLeft && newLeft <= maxLeft) {
-	// 			dragBox.style.left = `${newLeft}px`;
-	// 		}
-	// 	};
-
-	// 	document.onmouseup = () => {
-	// 		document.onmouseup = null;
-	// 		document.onmousemove = null;
-	// 	};
-	// }
 
 	onMount(() => {
 		loadItems(); // Charge les éléments du localStorage au montage du composant
@@ -305,7 +218,7 @@
 <div class="hud" class:concealed-hud={params.hide}>
 	<div class="score">
 		<legend>Score:</legend>
-		<p>{values.filter((el: Value) => el.found).length} / {data.pokemons.length}</p>
+		<p>{values.filter((el: Value) => el.found).length} / {pokemons.length}</p>
 	</div>
 
 	<div class="timer">
@@ -402,25 +315,29 @@
 >
 
 <ul class="poke-list">
-	{#each pokemons as pokemon}
-		{@const i = pokemon.pokedex_id - 1}
-		<li>
-			<img
-				src={isItShiny() ? pokemon.sprites.shiny : pokemon.sprites.regular}
-				alt="pokemon#{pokemon?.pokedex_id}"
-				class:found={values[i].found}
-			/>
-			<input
-				type="text"
-				id="pokename{pokemon.pokedex_id}"
-				style="color: {values[i].found ? 'green' : 'red'}"
-				bind:value={values[i].answer}
-				oninput={() => validateAnswer(values[i].answer, i)}
-				onkeydown={() => startTimer()}
-				disabled={values[i].found}
-			/>
-		</li>
-	{/each}
+	{#if pokemons}
+		{#each pokemons as pokemon}
+			{@const i = pokemon.id - 1}
+			<li>
+				<img
+					src={isItShiny()
+						? pokemon.sprites.shiny || pokemon.sprites.default
+						: pokemon.sprites.default}
+					alt="pokemon#{pokemon.id}"
+					class:found={values[i].found}
+				/>
+				<input
+					type="text"
+					id="pokename{pokemon.id}"
+					style="color: {values[i].found ? 'green' : 'red'}"
+					bind:value={values[i].answer}
+					oninput={() => validateAnswer(values[i].answer, i)}
+					onkeydown={() => startTimer()}
+					disabled={values[i].found}
+				/>
+			</li>
+		{/each}
+	{/if}
 </ul>
 
 <style>
@@ -531,8 +448,10 @@
 		border-radius: 20px;
 		background-color: var(--font-color);
 		color: var(--light-color);
+		transition: 0.2s;
 	}
 	.hide-hud {
+		cursor: pointer;
 		position: absolute;
 		bottom: -10px;
 		right: 20px;
@@ -544,6 +463,7 @@
 		font-size: 0.48em;
 		z-index: 1;
 		filter: drop-shadow(1px 1px rgba(0, 0, 0, 0.3));
+		transition: 0.2s;
 	}
 	.hide-hud input {
 		width: 30px;
@@ -560,12 +480,13 @@
 		height: 50px;
 		background-color: #fff;
 		color: var(--action-color);
-		border: 2px solid var(--dark-color);
+		border: 3px solid var(--dark-color);
 		border-radius: 5px;
 		box-shadow:
 			0 0 0 3px #ffffff,
 			5px 5px 0 0 rgba(0, 0, 0, 0.4);
 		animation: appear 2s;
+		transition: 0.2s;
 	}
 	@keyframes appear {
 		from {
@@ -630,6 +551,26 @@
 		.lang-param,
 		.shuffle-param {
 			flex-direction: column;
+		}
+	}
+
+	@media (pointer: fine), (pointer: none) {
+		/* Detects non touchscreens only for hover events on desktops and laptops */
+		.shuffle-param input:not(:checked):has(~ label:hover),
+		.lang-param input:not(:checked):has(~ label:hover) {
+			background-color: var(--font-color);
+			clip-path: polygon(0% 0%, 0% 100%, 10% 85%, 10% 15%, 80% 50%, 10% 85%, 0 100%, 100% 50%);
+		}
+		.reset:hover {
+			box-shadow:
+				2px 2px 2px 0 #00000062 inset,
+				-1px -1px 1px 0 rgba(254, 254, 254, 0.329) inset;
+			transition: 0.2s;
+		}
+		.hide-hud:hover,
+		.show-hud:hover {
+			transform: translateY(-5px);
+			transition: 0.2s;
 		}
 	}
 </style>

@@ -33,3 +33,18 @@ export interface Pokemon {
         fr: string;
     };
 }
+
+
+export interface Value {
+    id: number;
+    answer: string;
+    found: boolean;
+}
+
+export type Language = 'fr' | 'en';
+export interface Params {
+    hide: boolean;
+    shuffleMod: boolean;
+    lang: Language;
+    gen: { [key: string]: boolean };
+}

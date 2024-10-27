@@ -1,24 +1,38 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Pokemon } from '$lib/types';
-
-	interface Value {
-		id: number;
-		answer: string;
-		found: boolean;
-	}
-
-	type Language = 'fr' | 'en';
-	interface Params {
-		hide: boolean;
-		shuffleMod: boolean;
-		lang: Language;
-	}
+	import type { Pokemon, Value, Params, Language } from '$lib/types';
 
 	const { data } = $props<{ data: { pokemons: Pokemon[] | [] } }>();
+	let pokemonsData = $state<Pokemon[] | []>(data.pokemons);
+	let params = $state<Params>({
+		hide: false,
+		shuffleMod: false,
+		lang: 'fr',
+		gen: {
+			'1': true,
+			'2': false,
+			'3': false,
+			'4': false,
+			'5': false,
+			'6': false,
+			'7': false,
+			'8': false,
+			'9': false
+		}
+	});
+	let pokemons = $derived.by<Pokemon[] | []>(() => {
+		const selectedGens = Object.keys(params.gen).filter((gen: string) => params.gen[gen]);
+		return pokemonsData.filter((pk: Pokemon) => {
+			return selectedGens.includes(pk.generation_id.toString());
+		});
+	});
 
-	let pokemons = $state<Pokemon[] | []>(data.pokemons);
-	let params = $state<Params>({ hide: true, shuffleMod: false, lang: 'fr' });
+	/* Initialise un tableau d'objets pour stocker les réponses */
+	const getValues = () => {
+		return pokemonsData.map((pk: Pokemon) => ({ id: pk.id, answer: '', found: false }));
+	};
+	let values = $state<Value[]>(getValues());
+
 	let timer = $state({
 		isReadyToStart: false,
 		isOperating: false,
@@ -26,11 +40,8 @@
 		elapsedTime: '00:00',
 		previousTime: '00:00'
 	});
-	/* Initialise un tableau d'objets pour stocker les réponses */
-	const getValues = () => {
-		return pokemons.map((pkmn: Pokemon) => ({ id: pkmn.id, answer: '', found: false }));
-	};
-	let values = $state<Value[]>(getValues());
+
+	const generations = Array.from({ length: 9 }, (_, i) => i + 1);
 
 	function isItShiny(): boolean {
 		return Math.ceil(Math.random() * 8192) === 1 ? true : false;
@@ -43,6 +54,7 @@
 			shuffledPokemons: localStorage.getItem('shuffledPokemons'),
 			shuffleGameMod: localStorage.getItem('shuffleGameMod'),
 			gameLang: localStorage.getItem('gameLang'),
+			gen: localStorage.getItem('gen'),
 			timer: localStorage.getItem('timer')
 		};
 
@@ -50,9 +62,10 @@
 		if (localStorageItems.shuffleGameMod)
 			params.shuffleMod = JSON.parse(localStorageItems.shuffleGameMod);
 		if (localStorageItems.shuffleGameMod && localStorageItems.shuffledPokemons) {
-			pokemons = JSON.parse(localStorageItems.shuffledPokemons);
+			pokemonsData = JSON.parse(localStorageItems.shuffledPokemons);
 		}
 		if (localStorageItems.gameLang) params.lang = localStorageItems.gameLang as Language;
+		if (localStorageItems.gen) params.gen = JSON.parse(localStorageItems.gen);
 
 		if (localStorageItems.timer) {
 			timer = JSON.parse(localStorageItems.timer);
@@ -70,39 +83,41 @@
 			.map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`)
 			.join(' ');
 		/* Détecte si la réponse est juste */
-		const pokemon = pokemons.find((pkmn: Pokemon) => pkmn.id === index + 1);
-		if (values[index].answer === cleanValue(pokemon?.names[params.lang] ?? '')) {
-			values[index] = {
-				...values[index],
-				answer: pokemon?.names[params.lang] || values[index].answer,
-				found: true
-			};
-			localStorage.setItem('pokemonAnswers', JSON.stringify(values));
-		}
-		if (runTimer && values.every((el: Value) => el.found)) {
-			stopTimer(); // Stop le timer si toutes les réponses sont trouvées
+		const pokemon = pokemons.find((pk: Pokemon) => pk.id === index + 1);
+		if (pokemon) {
+			if (values[index].answer === cleanValue(pokemon?.names[params.lang] ?? '')) {
+				values[index] = {
+					...values[index],
+					answer: pokemon?.names[params.lang] || values[index].answer,
+					found: true
+				};
+				localStorage.setItem('pokemonAnswers', JSON.stringify(values));
+			}
+			if (runTimer && values.every((val: Value) => val.found)) {
+				stopTimer(); // Stop le timer si toutes les réponses sont trouvées
+			}
 		}
 	}
 
 	function shufflePokemons(): void {
 		const result: Pokemon[] = [];
 
-		pokemons.forEach((pkmn: Pokemon) => {
+		pokemonsData.forEach((_) => {
 			const getRandomPkmnId = (): number => {
 				// On utilise la récursivité pour trouver un id de pokemon qui ne soit pas déjà présent dans le tableau
-				const randomNum = Math.floor(Math.random() * pokemons.length) + 1;
-				if (result.length !== 0 && result.some((el: Pokemon) => el?.id === randomNum)) {
+				const randomNum = Math.floor(Math.random() * pokemonsData.length) + 1;
+				if (result.length !== 0 && result.some((pk: Pokemon) => pk?.id === randomNum)) {
 					return getRandomPkmnId();
 				}
 				return randomNum;
 			};
 			const randomPkmnId = getRandomPkmnId();
-			const randomPokemon = pokemons.find((el: Pokemon) => el.id === randomPkmnId);
+			const randomPokemon = pokemonsData.find((pk: Pokemon) => pk.id === randomPkmnId);
 			if (randomPokemon) result.push(randomPokemon);
 		});
 
-		pokemons = result;
-		localStorage.setItem('shuffledPokemons', JSON.stringify(pokemons));
+		pokemonsData = result;
+		localStorage.setItem('shuffledPokemons', JSON.stringify(pokemonsData));
 	}
 
 	function changeMod(e: Event): void {
@@ -114,35 +129,36 @@
 		} else {
 			localStorage.removeItem('shuffleGameMod');
 			localStorage.removeItem('shuffledPokemons');
-			pokemons = data.pokemons;
+			pokemonsData = data.pokemons;
 		}
 	}
 
-	function changeLang(e: Event) {
+	function changeLang(e: Event): void {
 		const input = e.target as HTMLInputElement;
 		params.lang = (input.value as Language) ?? (params.lang === 'fr' ? 'en' : 'fr');
-		values = values.map((el: Value) => {
-			if (el.found) {
+		values = values.map((val: Value) => {
+			if (val.found) {
 				return {
-					...el,
-					answer: pokemons.find((pkmn: Pokemon) => pkmn.id === el.id)?.names[params.lang] ?? ''
+					...val,
+					answer: pokemons.find((pkmn: Pokemon) => pkmn.id === val.id)?.names[params.lang] ?? ''
 				};
-			} else return el;
+			} else return val;
 		});
 		localStorage.setItem('gameLang', params.lang);
 		localStorage.setItem('pokemonAnswers', JSON.stringify(values));
 	}
 
-	function initiateTimer() {
+	/* ----- Timer functions ----- */
+	function initiateTimer(): void {
 		timer = { ...timer, isReadyToStart: true, isPaused: false, elapsedTime: timer.previousTime };
 	}
-	function startTimer() {
+	function startTimer(): void {
 		if (timer.isReadyToStart) {
 			timer = { ...timer, isReadyToStart: false, isOperating: true };
 			manageTimer();
 		}
 	}
-	function pauseTimer() {
+	function pauseTimer(): void {
 		timer = {
 			...timer,
 			isOperating: false,
@@ -151,7 +167,7 @@
 		};
 		manageTimer();
 	}
-	function stopTimer() {
+	function stopTimer(): void {
 		timer = {
 			...timer,
 			isReadyToStart: false,
@@ -163,7 +179,7 @@
 	}
 
 	let runTimer: number | undefined;
-	function manageTimer() {
+	function manageTimer(): void {
 		if (timer.isOperating) {
 			const start = Date.now();
 			runTimer = setInterval(() => {
@@ -189,9 +205,14 @@
 		}
 	}
 
-	/* Réinitialise le jeu */
+	function handleGenSelect(num: number): void {
+		params.gen[num] = !params.gen[num];
+		localStorage.setItem('gen', JSON.stringify(params.gen));
+	}
+
+	/* Réinitialise le réponses mais pas les paramètres */
 	function reset(): void {
-		values = pokemons.map((pkmn: Pokemon) => ({ id: pkmn.id, answer: '', found: false }));
+		values = getValues();
 		localStorage.removeItem('pokemonAnswers');
 	}
 
@@ -199,9 +220,10 @@
 		loadItems(); // Charge les éléments du localStorage au montage du composant
 		return () => {
 			if (runTimer) {
+				// Met en pause le timer au démontage s'il est actif
 				pauseTimer();
 				localStorage.setItem('timer', JSON.stringify(timer));
-			} // Met en pause le timer au démontage s'il est actif
+			}
 		};
 	});
 </script>
@@ -218,7 +240,10 @@
 <div class="hud" class:concealed-hud={params.hide}>
 	<div class="score">
 		<legend>Score:</legend>
-		<p>{values.filter((el: Value) => el.found).length} / {pokemons.length}</p>
+		<p>
+			{values.filter((val: Value) => pokemons.some((pk: Pokemon) => pk.id === val.id) && val.found)
+				.length} / {pokemons.length}
+		</p>
 	</div>
 
 	<div class="timer">
@@ -295,6 +320,21 @@
 		</div>
 	</div>
 
+	<div class="gen-select">
+		<legend>Générations:</legend>
+		{#each generations as num}
+			<label for="gen{num}">
+				{num}
+				<input
+					type="checkbox"
+					id="gen{num}"
+					bind:checked={params.gen[num.toString()]}
+					oninput={() => handleGenSelect(num)}
+				/>
+			</label>
+		{/each}
+	</div>
+
 	<button class="reset" onclick={() => reset()}>Reset</button>
 
 	<label for="hide-hud" class="hide-hud"
@@ -315,7 +355,7 @@
 >
 
 <ul class="poke-list">
-	{#if pokemons}
+	{#if pokemons && pokemons.length > 0}
 		{#each pokemons as pokemon}
 			{@const i = pokemon.id - 1}
 			<li>
@@ -337,6 +377,14 @@
 				/>
 			</li>
 		{/each}
+	{:else}
+		<p>Il n'y aucun Pokémon à afficher</p>
+		<p>
+			Vous devriez peut-être essayer utiliser un peu d'encens...
+			<button onclick={() => (params.gen['1'] = true)}
+				><img src="/icons/encens.png" alt="encens" /></button
+			>
+		</p>
 	{/if}
 </ul>
 

@@ -76,7 +76,7 @@
 	function validateAnswer(value: string, index: number): void {
 		/* S'assure que la valeur ne contient pas de charactères spéciaux
 		Accents et charactères spé. présents dans les noms de pokémons français : âçéÉêèïô-:\s\.♀♂ */
-		const cleanValue = (str: string): string => str.normalize('NFD').replace(/[^a-z\s\.]/gi, '');
+		const cleanValue = (str: string): string => str.normalize('NFD').replace(/[^a-z\s\.-]/gi, '');
 		/* Met une majuscule à tous les mots */
 		values[index].answer = cleanValue(value)
 			.split(' ')
@@ -85,7 +85,10 @@
 		/* Détecte si la réponse est juste */
 		const pokemon = pokemons.find((pk: Pokemon) => pk.id === index + 1);
 		if (pokemon) {
-			if (values[index].answer === cleanValue(pokemon?.names[params.lang] ?? '')) {
+			if (
+				values[index].answer.toLowerCase() ===
+				cleanValue(pokemon?.names[params.lang].toLowerCase() ?? '')
+			) {
 				values[index] = {
 					...values[index],
 					answer: pokemon?.names[params.lang] || values[index].answer,

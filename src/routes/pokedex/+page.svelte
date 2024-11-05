@@ -384,7 +384,7 @@
 		<p>Il n'y aucun Pokémon à afficher</p>
 		<p>
 			Vous devriez peut-être essayer utiliser un peu d'encens...
-			<button onclick={() => (params.gen['1'] = true)}
+			<button onclick={() => handleGenSelect(1)}
 				><img src="/icons/encens.png" alt="encens" /></button
 			>
 		</p>

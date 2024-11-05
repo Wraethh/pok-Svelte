@@ -43,6 +43,7 @@ export interface Value {
 
 export type Language = 'fr' | 'en';
 export interface Params {
+    clicked: boolean,
     hide: boolean;
     shuffleMod: boolean;
     lang: Language;

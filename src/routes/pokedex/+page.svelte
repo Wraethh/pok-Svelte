@@ -5,7 +5,8 @@
 	const { data } = $props<{ data: { pokemons: Pokemon[] | [] } }>();
 	let pokemonsData = $state<Pokemon[] | []>(data.pokemons);
 	let params = $state<Params>({
-		hide: false,
+		clicked: false,
+		hide: true,
 		shuffleMod: false,
 		lang: 'fr',
 		gen: {
@@ -240,7 +241,11 @@
 	le nom de tous ces pokémons ?
 </p>
 
-<div class="hud" class:concealed-hud={params.hide}>
+<div
+	class="hud"
+	class:display-hud={!params.hide && params.clicked}
+	class:conceal-hud={params.hide && params.clicked}
+>
 	<div class="score">
 		<legend>Score:</legend>
 		<p>
@@ -340,21 +345,23 @@
 
 	<button class="reset" onclick={() => reset()}>Reset</button>
 
-	<label for="hide-hud" class="hide-hud"
+	<label for="hide-hud-btn" class="hide-hud-btn"
 		>CACHER<input
 			type="button"
-			id="hide-hud"
+			id="hide-hud-btn"
 			aria-label="hide hud"
-			onclick={() => (params.hide = true)}
+			onclick={() => ((params.hide = true), (params.clicked = true))}
 		/></label
 	>
 </div>
 <button
-	class="show-hud"
-	class:nodisplay={!params.hide}
+	class="show-hud-btn"
+	class:display-show-hud-btn={params.hide && params.clicked}
+	class:conceal-show-hud-btn={!params.hide && params.clicked}
 	style={timer.isOperating ? 'padding: 0 1rem;' : 'font-size: 1.5em'}
 	aria-label="show hud"
-	onclick={() => (params.hide = false)}>{timer.isOperating ? timer.elapsedTime : '!'}</button
+	onclick={() => ((params.hide = false), (params.clicked = true))}
+	>{timer.isOperating ? timer.elapsedTime : '!'}</button
 >
 
 <ul class="poke-list">
@@ -394,7 +401,7 @@
 <style>
 	.hud {
 		position: fixed;
-		bottom: 10px;
+		bottom: -100%;
 		left: 10px;
 		z-index: 10;
 		min-width: 250px;
@@ -431,15 +438,35 @@
 	.hud * {
 		font-family: var(--secondary-font);
 	}
-	:global(.concealed-hud) {
-		animation: conceal 1.2s forwards;
+	:global(.display-hud) {
+		animation: slidein 1.5s forwards;
 	}
-	@keyframes conceal {
-		20% {
-			transform: translateY(-10px);
+	@keyframes slidein {
+		from {
+			bottom: -100%;
+		}
+		60% {
+			bottom: -100%;
+		}
+		90% {
+			bottom: 20px;
 		}
 		to {
-			transform: translateY(120%);
+			bottom: 10px;
+		}
+	}
+	:global(.conceal-hud) {
+		animation: slideout 1.2s forwards;
+	}
+	@keyframes slideout {
+		from {
+			bottom: 10px;
+		}
+		20% {
+			bottom: 20px;
+		}
+		to {
+			bottom: -100%;
 		}
 	}
 
@@ -501,7 +528,7 @@
 		color: var(--light-color);
 		transition: 0.2s;
 	}
-	.hide-hud {
+	.hide-hud-btn {
 		cursor: pointer;
 		position: absolute;
 		bottom: -10px;
@@ -516,13 +543,13 @@
 		filter: drop-shadow(1px 1px rgba(0, 0, 0, 0.3));
 		transition: 0.2s;
 	}
-	.hide-hud input {
+	.hide-hud-btn input {
 		width: 30px;
 		height: 15px;
 		background-color: var(--action-color);
 		clip-path: polygon(100% 0, 0 0, 50% 100%);
 	}
-	.show-hud {
+	.show-hud-btn {
 		position: fixed;
 		bottom: 10px;
 		left: 10px;
@@ -536,21 +563,34 @@
 		box-shadow:
 			0 0 0 3px #ffffff,
 			5px 5px 0 0 rgba(0, 0, 0, 0.4);
-		animation: appear 2s;
 		transition: 0.2s;
+	}
+	:global(.display-show-hud-btn) {
+		animation: appear 1.5s forwards;
 	}
 	@keyframes appear {
 		from {
-			transform: translateY(120px);
+			transform: translateY(300px);
 		}
 		70% {
-			transform: translateY(120px);
+			transform: translateY(300px);
 		}
 		90% {
 			transform: translateY(-10px);
 		}
 		to {
 			transform: translateY(0);
+		}
+	}
+	:global(.conceal-show-hud-btn) {
+		animation: conceal 1.2s forwards;
+	}
+	@keyframes conceal {
+		20% {
+			transform: translateY(-10px);
+		}
+		to {
+			transform: translateY(300px);
 		}
 	}
 	.poke-list {
@@ -618,8 +658,8 @@
 				-1px -1px 1px 0 rgba(254, 254, 254, 0.329) inset;
 			transition: 0.2s;
 		}
-		.hide-hud:hover,
-		.show-hud:hover {
+		.hide-hud-btn:hover,
+		.show-hud-btn:hover {
 			transform: translateY(-5px);
 			transition: 0.2s;
 		}

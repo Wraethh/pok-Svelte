@@ -39,6 +39,7 @@ export interface Value {
     id: number;
     answer: string;
     found: boolean;
+    animPlayed: boolean;
 }
 
 export type Language = 'fr' | 'en';

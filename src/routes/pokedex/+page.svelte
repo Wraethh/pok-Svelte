@@ -30,7 +30,12 @@
 
 	/* Initialise un tableau d'objets pour stocker les réponses */
 	const getValues = () => {
-		return pokemonsData.map((pk: Pokemon) => ({ id: pk.id, answer: '', found: false }));
+		return pokemonsData.map((pk: Pokemon) => ({
+			id: pk.id,
+			answer: '',
+			found: false,
+			animPlayed: false
+		}));
 	};
 	let values = $state<Value[]>(getValues());
 
@@ -74,6 +79,7 @@
 		}
 	}
 
+	let playAnim: number;
 	function validateAnswer(value: string, index: number): void {
 		/* S'assure que la valeur ne contient pas de charactères spéciaux
 		Accents et charactères spé. présents dans les noms de pokémons français : âçéÉêèïô-:\s\.♀♂ */
@@ -96,6 +102,11 @@
 					found: true
 				};
 				localStorage.setItem('pokemonAnswers', JSON.stringify(values));
+
+				playAnim = setTimeout(() => {
+					values[index].animPlayed = true;
+					localStorage.setItem('pokemonAnswers', JSON.stringify(values));
+				}, 700);
 			}
 			if (runTimer && values.every((val: Value) => val.found)) {
 				stopTimer(); // Stop le timer si toutes les réponses sont trouvées
@@ -223,6 +234,7 @@
 	onMount(() => {
 		loadItems(); // Charge les éléments du localStorage au montage du composant
 		return () => {
+			if (playAnim) clearTimeout(playAnim);
 			if (runTimer) {
 				// Met en pause le timer au démontage s'il est actif
 				pauseTimer();
@@ -374,7 +386,8 @@
 						? pokemon.sprites.shiny || pokemon.sprites.default
 						: pokemon.sprites.default}
 					alt="pokemon#{pokemon.id}"
-					class:found={values[i].found}
+					style={values[i].found ? `filter: brightness(1)` : ''}
+					class:found={values[i].found && !values[i].animPlayed}
 				/>
 				<input
 					type="text"
@@ -615,7 +628,6 @@
 		-webkit-user-drag: none;
 	}
 	.poke-list .found {
-		filter: brightness(1);
 		animation: reveal 0.7s;
 	}
 	@keyframes reveal {

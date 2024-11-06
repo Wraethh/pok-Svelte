@@ -188,14 +188,17 @@
 		manageTimer();
 	}
 	function stopTimer(): void {
-		timer = {
-			...timer,
-			isReadyToStart: false,
-			isOperating: false,
-			isPaused: false,
-			previousTime: '00:00'
-		};
-		manageTimer();
+		if (!timer.isOperating && !timer.isReadyToStart && !timer.isPaused) timer.elapsedTime = '00:00';
+		else {
+			timer = {
+				...timer,
+				isReadyToStart: false,
+				isOperating: false,
+				isPaused: false,
+				previousTime: '00:00'
+			};
+			manageTimer();
+		}
 	}
 
 	let runTimer: number | undefined;
@@ -282,10 +285,7 @@
 			{:else}
 				<button onclick={() => pauseTimer()} disabled={!timer.isOperating}>⏸️</button>
 			{/if}
-			<button
-				onclick={() => stopTimer()}
-				disabled={!timer.isOperating && !timer.isReadyToStart && !timer.isPaused}>⏹️</button
-			>
+			<button onclick={() => stopTimer()}>⏹️</button>
 		</div>
 	</div>
 

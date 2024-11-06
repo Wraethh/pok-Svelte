@@ -108,7 +108,12 @@
 					localStorage.setItem('pokemonAnswers', JSON.stringify(values));
 				}, 700);
 			}
-			if (runTimer && values.every((val: Value) => val.found)) {
+			if (
+				runTimer &&
+				values
+					.filter((val: Value) => pokemons.some((pk: Pokemon) => pk.id === val.id))
+					.every((val: Value) => val.found)
+			) {
 				stopTimer(); // Stop le timer si toutes les réponses sont trouvées
 			}
 		}
@@ -361,7 +366,7 @@
 		>CACHER<input
 			type="button"
 			id="hide-hud-btn"
-			aria-label="hide hud"
+			aria-label="hide hud button"
 			onclick={() => ((params.hide = true), (params.clicked = true))}
 		/></label
 	>
@@ -370,10 +375,10 @@
 	class="show-hud-btn"
 	class:display-show-hud-btn={params.hide && params.clicked}
 	class:conceal-show-hud-btn={!params.hide && params.clicked}
-	style={timer.isOperating ? 'padding: 0 1rem;' : 'font-size: 1.5em'}
-	aria-label="show hud"
+	style={timer.isReadyToStart || timer.isOperating ? 'padding: 0 1rem;' : 'font-size: 1.5em'}
+	aria-label="show hud button"
 	onclick={() => ((params.hide = false), (params.clicked = true))}
-	>{timer.isOperating ? timer.elapsedTime : '!'}</button
+	>{timer.isReadyToStart || timer.isOperating ? timer.elapsedTime : '!'}</button
 >
 
 <ul class="poke-list">
@@ -392,7 +397,7 @@
 				<input
 					type="text"
 					id="pokename{pokemon.id}"
-					style="color: {values[i].found ? 'green' : 'red'}"
+					style="color: {values[i].found ? 'green' : 'var(--action-color)'}"
 					bind:value={values[i].answer}
 					oninput={() => validateAnswer(values[i].answer, i)}
 					onkeydown={() => startTimer()}

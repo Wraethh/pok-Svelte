@@ -239,6 +239,11 @@
 		localStorage.removeItem('pokemonAnswers');
 	}
 
+	function handleClickHideParams(bool: boolean) {
+		params.hide = bool;
+		params.clicked = true;
+	}
+
 	onMount(() => {
 		loadItems(); // Charge les éléments du localStorage au montage du composant
 		return () => {
@@ -263,8 +268,8 @@
 
 <div
 	class="hud"
-	class:display-hud={!params.hide && params.clicked}
-	class:conceal-hud={params.hide && params.clicked}
+	class:display={!params.hide && params.clicked}
+	class:conceal={params.hide && params.clicked}
 >
 	<div class="score">
 		<legend>Score:</legend>
@@ -285,7 +290,7 @@
 			{:else}
 				<button onclick={() => pauseTimer()} disabled={!timer.isOperating}>⏸️</button>
 			{/if}
-			<button onclick={() => stopTimer()}>⏹️</button>
+			<button onclick={() => stopTimer()} disabled={timer.elapsedTime === '00:00'}>⏹️</button>
 		</div>
 	</div>
 
@@ -347,17 +352,19 @@
 
 	<div class="gen-select">
 		<legend>Générations:</legend>
-		{#each generations as num}
-			<label for="gen{num}">
-				{num}
-				<input
-					type="checkbox"
-					id="gen{num}"
-					bind:checked={params.gen[num.toString()]}
-					oninput={() => handleGenSelect(num)}
-				/>
-			</label>
-		{/each}
+		<div>
+			{#each generations as num}
+				<label for="gen{num}">
+					{num}
+					<input
+						type="checkbox"
+						id="gen{num}"
+						bind:checked={params.gen[num.toString()]}
+						oninput={() => handleGenSelect(num)}
+					/>
+				</label>
+			{/each}
+		</div>
 	</div>
 
 	<button class="reset" onclick={() => reset()}>Reset</button>
@@ -367,17 +374,17 @@
 			type="button"
 			id="hide-hud-btn"
 			aria-label="hide hud button"
-			onclick={() => ((params.hide = true), (params.clicked = true))}
+			onclick={() => handleClickHideParams(true)}
 		/></label
 	>
 </div>
 <button
 	class="show-hud-btn"
-	class:display-show-hud-btn={params.hide && params.clicked}
-	class:conceal-show-hud-btn={!params.hide && params.clicked}
+	class:display={params.hide && params.clicked}
+	class:conceal={!params.hide && params.clicked}
 	style={timer.isReadyToStart || timer.isOperating ? 'padding: 0 1rem;' : 'font-size: 1.5em'}
 	aria-label="show hud button"
-	onclick={() => ((params.hide = false), (params.clicked = true))}
+	onclick={() => handleClickHideParams(false)}
 	>{timer.isReadyToStart || timer.isOperating ? timer.elapsedTime : '!'}</button
 >
 
@@ -391,7 +398,7 @@
 						? pokemon.sprites.shiny || pokemon.sprites.default
 						: pokemon.sprites.default}
 					alt="pokemon#{pokemon.id}"
-					style={values[i].found ? `filter: brightness(1)` : ''}
+					style={values[i].found ? 'filter: brightness(1)' : 'filter: brightness(0)'}
 					class:found={values[i].found && !values[i].animPlayed}
 				/>
 				<input
@@ -456,14 +463,14 @@
 	.hud * {
 		font-family: var(--secondary-font);
 	}
-	:global(.display-hud) {
-		animation: slidein 1.5s forwards;
+	:global(.display) {
+		animation: slidein 1s forwards;
 	}
 	@keyframes slidein {
 		from {
 			bottom: -100%;
 		}
-		60% {
+		50% {
 			bottom: -100%;
 		}
 		90% {
@@ -473,8 +480,8 @@
 			bottom: 10px;
 		}
 	}
-	:global(.conceal-hud) {
-		animation: slideout 1.2s forwards;
+	:global(.conceal) {
+		animation: slideout 1s forwards;
 	}
 	@keyframes slideout {
 		from {
@@ -509,9 +516,11 @@
 		gap: 0.3rem;
 	}
 	.shuffle-param input,
-	.lang-param input {
+	.lang-param input,
+	.gen-select input {
 		appearance: none;
 		-webkit-appearance: none;
+		background-color: transparent;
 		width: 10px;
 		height: 10px;
 	}
@@ -523,6 +532,43 @@
 	.lang-param input:checked {
 		background-color: var(--font-color);
 		clip-path: polygon(0 0, 0% 100%, 100% 50%);
+	}
+	.gen-select {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+	.gen-select > div {
+		display: flex;
+		gap: 1rem;
+		flex-wrap: wrap;
+		max-width: 275px;
+	}
+	.gen-select label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+	.gen-select input[type='checkbox'] {
+		cursor: pointer;
+		width: 15px;
+		height: 15px;
+		border: 3px solid var(--font-color);
+	}
+	.gen-select input:checked {
+		display: grid;
+		place-content: center;
+	}
+	.gen-select input[type='checkbox']::before {
+		content: '';
+		transform: scale(0);
+		height: 7px;
+		width: 7px;
+		background-color: var(--font-color);
+		transition: 0.1s transform ease-in-out;
+	}
+	.gen-select input[type='checkbox']:checked::before {
+		transform: scale(1);
 	}
 
 	.paused {
@@ -583,34 +629,7 @@
 			5px 5px 0 0 rgba(0, 0, 0, 0.4);
 		transition: 0.2s;
 	}
-	:global(.display-show-hud-btn) {
-		animation: appear 1.5s forwards;
-	}
-	@keyframes appear {
-		from {
-			transform: translateY(300px);
-		}
-		70% {
-			transform: translateY(300px);
-		}
-		90% {
-			transform: translateY(-10px);
-		}
-		to {
-			transform: translateY(0);
-		}
-	}
-	:global(.conceal-show-hud-btn) {
-		animation: conceal 1.2s forwards;
-	}
-	@keyframes conceal {
-		20% {
-			transform: translateY(-10px);
-		}
-		to {
-			transform: translateY(300px);
-		}
-	}
+
 	.poke-list {
 		display: flex;
 		justify-content: center;
@@ -628,7 +647,6 @@
 
 	.poke-list li img {
 		object-fit: cover;
-		filter: brightness(0);
 		transition: 0.4s;
 		-webkit-user-drag: none;
 	}
@@ -659,6 +677,9 @@
 		.lang-param,
 		.shuffle-param {
 			flex-direction: column;
+		}
+		.gen-select > div {
+			max-width: 175px;
 		}
 	}
 

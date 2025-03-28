@@ -114,7 +114,7 @@
 					.filter((val: Value) => pokemons.some((pk: Pokemon) => pk.id === val.id))
 					.every((val: Value) => val.found)
 			) {
-				stopTimer(); // Stop le timer si toutes les réponses sont trouvées
+				stopTimer(); // Stop le timer si toutes les réponses sont trouvées et poste le score sur l'api
 				let selectedGens = [];
 				for (const g in params.gen) {
 					if (params.gen[g]) selectedGens.push(g);

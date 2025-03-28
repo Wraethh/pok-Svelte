@@ -79,7 +79,7 @@
 		}
 	}
 
-	let playAnim: number;
+	let playAnim: ReturnType<typeof setTimeout>;
 	function validateAnswer(value: string, index: number): void {
 		/* S'assure que la valeur ne contient pas de charactères spéciaux
 		Accents et charactères spé. présents dans les noms de pokémons français : âçéÉêèïô-:\s\.♀♂ */
@@ -115,6 +115,12 @@
 					.every((val: Value) => val.found)
 			) {
 				stopTimer(); // Stop le timer si toutes les réponses sont trouvées
+				let selectedGens = [];
+				for (const g in params.gen) {
+					if (params.gen[g]) selectedGens.push(g);
+				}
+				const score = { time: timer.elapsedTime, selectedGens: selectedGens };
+				registerScore(score);
 			}
 		}
 	}
@@ -201,7 +207,7 @@
 		}
 	}
 
-	let runTimer: number | undefined;
+	let runTimer: ReturnType<typeof setTimeout> | undefined;
 	function manageTimer(): void {
 		if (timer.isOperating) {
 			const start = Date.now();
@@ -233,8 +239,7 @@
 		localStorage.setItem('gen', JSON.stringify(params.gen));
 	}
 
-	/* Réinitialise le réponses mais pas les paramètres */
-	function reset(): void {
+	function resetAnswers(): void {
 		values = getValues();
 		localStorage.removeItem('pokemonAnswers');
 	}
@@ -242,6 +247,10 @@
 	function handleClickHideParams(bool: boolean) {
 		params.hide = bool;
 		params.clicked = true;
+	}
+
+	async function registerScore(score: { time: string; selectedGens: string[] }) {
+		await fetch('/api/scores', { method: 'POST', body: JSON.stringify({ score }) });
 	}
 
 	onMount(() => {
@@ -369,7 +378,7 @@
 		</div>
 	</div>
 
-	<button class="reset" onclick={() => reset()}>Reset</button>
+	<button class="reset" onclick={() => resetAnswers()}>Reset</button>
 
 	<label for="hide-hud-btn" class="hide-hud-btn"
 		>CACHER<input
